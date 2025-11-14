@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Технічна Специфікація Платіжного Сервісу</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-btn.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+        }
+        .nav-link.active {
+            background-color: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3), 0 2px 4px -2px rgba(59, 130, 246, 0.3);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 450px;
+        }
+        .table-cell {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        /* PSP Flow Diagram Styles */
+        .psp-node {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            flex-shrink: 0;
+            min-width: 120px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .psp-arrow {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #3b82f6;
+            line-height: 1;
+        }
+        .kms-stage {
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 0.5rem;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .kms-stage:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        /* Crypto Standards Diagram Styles */
+        .crypto-node {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+            min-width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .crypto-arrow {
+            font-size: 1.25rem;
+            color: #4f46e5;
+            margin: 0 0.5rem;
+        }
+        .term-hover {
+            border-bottom: 1px dashed #3b82f6;
+            cursor: help;
+        }
+        /* Modal Styles */
+        #geminiModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #geminiModal.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+   
+
+<header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-2 flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-xl font-bold text-blue-600 mb-2 md:mb-0">Специфікація Платіжного Сервісу: Крипто-Вимоги</h1>
+            <div class="flex flex-col md:flex-row items-center gap-2">
+                <div id="navigation" class="flex flex-wrap justify-center gap-2 mt-2 md:mt-0">
+                    <button data-target="section-req-libs" class="nav-link px-2 py-1 rounded-lg font-medium text-slate-700 hover:bg-slate-100">1. ТехВимоги (Бібліотеки)</button>
+                    <button data-target="section-req-keys" class="nav-link px-2 py-1 rounded-lg font-medium text-slate-700 hover:bg-slate-100">2. ТехВимоги (Ключі/ПСП)</button>
+                    <button data-target="section-impl-arch" class="nav-link px-2 py-1 rounded-lg font-medium text-slate-700 hover:bg-slate-100">3. Реалізації (Архітектури)</button>
+                    <button data-target="section-impl-crypto" class="nav-link px-2 py-1 rounded-lg font-medium text-slate-700 hover:bg-slate-100">4. Реалізації (API/PKCS)</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-6">
+
+        
+
+<section id="section-req-libs" class="content-section space-y-8">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-2">1. Технічні Вимоги: Вибір Бібліотек та Пріоритет</h2>
+            <p class="text-lg text-slate-700">
+                Цей розділ аналізує фундаментальний компроміс між необхідністю <span class="term-hover" title="Цілісність Обробки">Processing Integrity</span> (абсолютної фінансової точності) та вимогами <span class="term-hover" title="Стандарт Безпеки Даних Індустрії Платіжних Карт">PCI DSS</span> / <span class="term-hover" title="Федеральний Стандарт Обробки Інформації">FIPS</span> (криптографічного комплаєнсу), визначаючи, який клас бібліотек має архітектурний пріоритет.
+            </p>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 text-blue-700">Обґрунтування Пріоритету: Арифметична Точність</h3>
+                <p class="mb-4 text-slate-600 border-l-4 border-red-500 pl-3 bg-red-50 p-2 italic">
+                    Принциповий вибір віддається Бібліотеці Високоточної Арифметики (<span class="term-hover" title="Десяткове число">Decimal</span>/<span class="term-hover" title="Велике десяткове число">BigDecimal</span>). Неправильні розрахунки через помилки плаваючої коми призводять до фундаментального порушення Цілісності Обробки, що є сутнісною помилкою бізнес-логіки. Криптографія забезпечується окремими FIPS-валідованими модулями та апаратним прискоренням (<span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>).
+                </p>
+
+                <h4 class="text-xl font-semibold text-slate-800 mt-6 mb-3">Компроміс: Точність, Безпека та Продуктивність (Radar Chart)</h4>
+                
+                <div class="chart-container">
+                    <canvas id="compChart"></canvas>
+                </div>
+                <p class="mt-4 text-sm text-slate-500">
+                    *Діаграма відображає архітектурний компроміс: висока точність (<span class="term-hover" title="Десяткове число">Decimal</span>) критична для цілісності, але сповільнює операції (до 15x-30x). FIPS-валідована криптографія має нижчий <span class="term-hover" title="Додаткове навантаження">overhead</span>, але є мандатною. Архітектурне рішення - ізоляція та оптимізація повільних операцій через <span class="term-hover" title="Відокремлення відповідальності команди та запиту">CQRS</span> та кешування.*
+                </p>
+
+                <h4 class="text-xl font-semibold text-slate-800 mt-6 mb-3">Аналіз Критичних Бібліотек та Вплив на Латентність</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg border border-slate-300">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 uppercase text-xs leading-normal">
+                                <th class="py-2 px-4 text-left">Характеристика</th>
+                                <th class="py-2 px-4 text-left">Арифметика (<span class="term-hover" title="Десяткове число">Decimal</span>/<span class="term-hover" title="Велике десяткове число">BigDecimal</span>)</th>
+                                <th class="py-2 px-4 text-left">Криптографія (FIPS-Validated Module)</th>
+                                <th class="py-2 px-4 text-left">Floating Point (Заборонено)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-600 text-sm font-light">
+                            <tr class="hover:bg-slate-50">
+                                <td class="table-cell font-bold">Фінансова Точність</td>
+                                <td class="table-cell text-green-700 font-bold">Абсолютна (<span class="term-hover" title="Точна арифметика">Exact Arithmetic</span>). Категорична заборона <span class="term-hover" title="Число з плаваючою комою">float</span>.</td>
+                                <td class="table-cell">Не застосовується</td>
+                                <td class="table-cell text-red-600 font-bold">Неточна (<span class="term-hover" title="Помилки округлення">Rounding Errors</span>). Порушує <span class="term-hover" title="Цілісність Обробки">Processing Integrity</span>.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="table-cell font-bold">Вплив на Латентність</td>
+                                <td class="table-cell">Високий (15x-30x сповільнення). Вимагає <span class="term-hover" title="Відокремлення відповідальності команди та запиту">CQRS</span>.</td>
+                                <td class="table-cell">Середній (<span class="term-hover" title="Додаткове навантаження FIPS валідації">Overhead FIPS validation</span>). Компенсується <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>.</td>
+                                <td class="table-cell">Низький (дуже швидкий)</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="table-cell font-bold">Ліцензійні Вимоги</td>
+                                <td class="table-cell">Пріоритет Apache/MIT/Нативних. Заборона <span class="term-hover" title="Загальна Публічна Ліцензія GNU">GPL</span>/<span class="term-hover" title="Копілефт">Copyleft</span> для комерційного ядра.</td>
+                                <td class="table-cell">Мандатна FIPS 140-2/3 (<span class="term-hover" title="Криптографічна бібліотека Bouncy Castle">Bouncy Castle FIPS</span>).</td>
+                                <td class="table-cell">Не відповідає</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Деталізовані Технічні Вимоги до Компонентів</h3>
+                <h4 class="text-xl font-semibold text-blue-700 mb-3">Криптографія (FIPS-Mandatory):</h4>
+                <ul class="list-disc list-inside space-y-2 text-slate-600 ml-4">
+                    <li><span class="term-hover" title="Федеральний Стандарт Обробки Інформації">FIPS</span> 140-2/3: Використання криптомодуля з сертифікатом <span class="term-hover" title="Рівень безпеки FIPS">Level 2+</span>. Приклад: <span class="term-hover" title="Криптографічна бібліотека Bouncy Castle">Bouncy Castle FIPS</span>.</li>
+                    <li>Протоколи: Обов'язкове використання <span class="term-hover" title="Безпека транспортного рівня">TLS 1.3</span> з <span class="term-hover" title="Еліптична Крива Діффі-Гелмана з Ефемерними Ключами">ECDHE</span> для забезпечення <span class="term-hover" title="Пряма Секретність">Forward Secrecy</span> при передачі <span class="term-hover" title="Дані власника картки">CHD</span> через публічні мережі.</li>
+                </ul>
+                <h4 class="text-xl font-semibold text-blue-700 mt-6 mb-3">Арифметика (<span class="term-hover" title="Цілісність Обробки">Processing Integrity</span>):</h4>
+                 <ul class="list-disc list-inside space-y-2 text-slate-600 ml-4">
+                    <li>Тип Даних: Використання нативних типів <span class="term-hover" title="Десяткове число">Decimal</span> (C#) або <span class="term-hover" title="Велике десяткове число">BigDecimal</span> (Java).</li>
+                    <li>Архітектурна Компенсація: Впровадження <span class="term-hover" title="Відокремлення відповідальності команди та запиту">CQRS</span> та <span class="term-hover" title="Кешування у пам'яті">In-memory Caching</span> для ізоляції повільних операцій запису від швидких операцій читання.</li>
+                    <li><span class="term-hover" title="Атомарність, Узгодженість, Ізоляція, Надійність">ACID</span>: Усі операції, що змінюють баланси (<span class="term-hover" title="Бухгалтерський журнал">Ledger</span>), повинні відповідати властивостям <span class="term-hover" title="Атомарність, Узгодженість, Ізоляція, Надійність">ACID</span>.</li>
+                </ul>
+            </div>
+        </section>
+
+        
+
+<section id="section-req-keys" class="content-section space-y-8" style="display: none;">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-2">2. Технічні Вимоги: Схеми Генерації ПСП та Управління Ключами (KMS)</h2>
+            <p class="text-lg text-slate-700">
+                Цей розділ деталізує вимоги до управління ключовим матеріалом та генерації криптографічно стійких псевдовипадкових послідовностей (<span class="term-hover" title="Криптографічно Стійкий Генератор Псевдовипадкових Чисел">ПСП</span>), критично важливих для комплаєнсу (<span class="term-hover" title="Стандарт Безпеки Даних Індустрії Платіжних Карт">PCI DSS</span>, <span class="term-hover" title="Вимоги до управління PIN-кодами">ISO 9564</span>).
+            </p>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 text-blue-700">Життєвий Цикл Криптографічного Ключа (<span class="term-hover" title="Система Управління Ключами">KMS</span>)</h3>
+                <p class="mb-4 text-slate-600">Діаграма ілюструє повний життєвий цикл ключа: від створення у захищеному модулі до його остаточного знищення. На кожному етапі потрібна відповідність <span class="term-hover" title="Федеральний Стандарт Обробки Інформації">FIPS</span> 140-2/3 та ведення повного аудиту (логіювання).</p>
+
+                
+
+<div class="flex flex-wrap justify-center items-start text-sm md:flex-row space-y-4 md:space-y-0 md:space-x-2 my-6">
+                    <div class="kms-stage bg-purple-100 border-2 border-purple-500 w-full md:w-1/6">1. Генерація (у <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>)</div>
+                    <span class="kms-arrow hidden md:block text-2xl text-purple-600">→</span>
+                    <div class="kms-stage bg-blue-100 border-2 border-blue-500 w-full md:w-1/6">2. Зберігання (<span class="term-hover" title="Сховище Системи Управління Ключами">KMS Vault</span>)</div>
+                    <span class="kms-arrow hidden md:block text-2xl text-purple-600">→</span>
+                    <div class="kms-stage bg-green-100 border-2 border-green-500 w-full md:w-1/6">3. Використання (<span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span>)</div>
+                    <span class="kms-arrow hidden md:block text-2xl text-purple-600">→</span>
+                    <div class="kms-stage bg-yellow-100 border-2 border-yellow-500 w-full md:w-1/6">4. Ротація / Архівування</div>
+                    <span class="kms-arrow hidden md:block text-2xl text-purple-600">→</span>
+                    <div class="kms-stage bg-red-100 border-2 border-red-500 w-full md:w-1/6">5. Знищення (<span class="term-hover" title="Криптографічне стирання">Крипто-стирання</span>)</div>
+                </div>
+                
+
+<h4 class="text-xl font-semibold text-slate-800 mt-8 mb-3">Порівняння: <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span> vs <span class="term-hover" title="Система Управління Ключами">Cloud KMS</span> (FIPS 140-2)</h4>
+                <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                    <div class="p-4 border rounded-lg bg-red-50 flex-1">
+                        <h5 class="text-lg font-semibold text-slate-800"><span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span> (Апаратний, <span class="term-hover" title="Рівень безпеки FIPS">FIPS Level 3/4</span>)</h5>
+                        <p class="text-sm text-slate-600">Переваги: Найвища фізична безпека. Ключі ніколи не покидають пристрій. Мандатний для захисту <span class="term-hover" title="Ключ шифрування ключів">KEK</span> та <span class="term-hover" title="Персональний Ідентифікаційний Номер">PIN</span>-блоків (<span class="term-hover" title="Вимоги до управління PIN-кодами">ISO 9564</span>). Приклад: <span class="term-hover" title="Система управління ключами Thales">Thales CipherTrust</span>.</p>
+                        <p class="text-sm text-slate-600 mt-1">Недоліки: Висока вартість, складна ротація. Компенсується <span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> <span class="term-hover" title="Інтерфейс прикладного програмування">API</span>.</p>
+                    </div>
+                    <div class="p-4 border rounded-lg bg-green-50 flex-1">
+                        <h5 class="text-lg font-semibold text-slate-800"><span class="term-hover" title="Система Управління Ключами">Cloud KMS</span> (Хмарний, <span class="term-hover" title="Рівень безпеки FIPS">FIPS Level 2/3</span>)</h5>
+                        <p class="text-sm text-slate-600">Переваги: Висока масштабованість (<span class="term-hover" title="Хмарний сервіс KMS Amazon">AWS KMS</span>, <span class="term-hover" title="Сховище ключів Azure">Azure Key Vault</span>), автоматизована ротація. Використовується для шифрування даних у стані спокою (<span class="term-hover" title="Дані у стані спокою">data at rest</span>).</p>
+                        <p class="text-sm text-slate-600 mt-1">Недоліки: Модель довіри до провайдера. Вимагає регулярного <span class="term-hover" title="Аудит безпеки">SOC 2</span> аудиту.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Схеми Генерації Криптографічно Стійких <span class="term-hover" title="Криптографічно Стійкий Генератор Псевдовипадкових Чисел">ПСП</span> (<span class="term-hover" title="Криптографічно Стійкий Генератор Псевдовипадкових Чисел">CSPRNG</span>)</h3>
+                <p class="mb-4 text-slate-600"><span class="term-hover" title="Криптографічно Стійкий Генератор Псевдовипадкових Чисел">CSPRNG</span> повинні бути непередбачуваними і стійкими до виведення внутрішнього стану. Вибір ґрунтується на <span class="term-hover" title="Стандарт NIST для генераторів випадкових бітів">NIST SP800-90A</span>.</p>
+                    
+                <h4 class="text-xl font-semibold text-blue-700 mb-3">Рекомендовані Схеми <span class="term-hover" title="Детермінований Генератор Випадкових Бітів">DRBG</span> (Deterministic Random Bit Generators)</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg border border-slate-300">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 uppercase text-xs leading-normal">
+                                <th class="py-2 px-4 text-left">Схема (<span class="term-hover" title="Стандарт NIST для генераторів випадкових бітів">NIST SP800-90A</span>)</th>
+                                <th class="py-2 px-4 text-left">Основа</th>
+                                <th class="py-2 px-4 text-left">Рекомендація для <span class="term-hover" title="Провайдер Платіжних Послуг">PSP</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-600 text-sm font-light">
+                            <tr class="hover:bg-slate-50">
+                                <td class="table-cell font-bold"><span class="term-hover" title="Генератор випадкових бітів на основі HMAC">HMAC_DRBG</span></td>
+                                <td class="table-cell">Криптографічна хеш-функція (<span class="term-hover" title="Хеш-функція з ключем">HMAC</span>).</td>
+                                <td class="table-cell">Висока безпека. Рекомендовано як основний стандарт через доведену стійкість.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="table-cell font-bold"><span class="term-hover" title="Генератор випадкових бітів на основі лічильника">CTR_DRBG</span></td>
+                                <td class="table-cell">Блочний шифр (напр., <span class="term-hover" title="Розширений стандарт шифрування">AES</span>).</td>
+                                <td class="table-cell">Підходить для високонавантажених систем, де можливе апаратне прискорення.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        
+
+<section id="section-impl-arch" class="content-section space-y-8" style="display: none;">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-2">3. Реалізації Платіжного Сервісу: Архітектурні Варіанти</h2>
+            <p class="text-lg text-slate-700">
+                Аналіз архітектурних моделей та ілюстрація типового шляху транзакції. Рекомендовано <span class="term-hover" title="Мікросервісна Архітектура">Мікросервісну Архітектуру</span> як єдине рішення для підтримки пікового <span class="term-hover" title="Транзакцій за секунду">TPS</span> (>20,000) та цільової доступності 99.99%.
+            </p>
+            
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 text-blue-700">Мікросервісна Архітектура <span class="term-hover" title="Провайдер Платіжних Послуг">PSP</span> (Рекомендована)</h3>
+                <p class="mb-4 text-slate-600">Цей підхід забезпечує ізоляцію (збої та оновлення обмежені одним сервісом) та незалежне масштабування (ключовий фактор для 20,000+ <span class="term-hover" title="Транзакцій за секунду">TPS</span>). Це також спрощує комплаєнс, дозволяючи окремо сертифікувати крипто-ядро.</p>
+
+                
+
+<div class="overflow-x-auto p-4 bg-slate-50 rounded-lg">
+                    <div class="flex flex-col items-center space-y-4 min-w-[600px]">
+                        
+                        <div class="psp-node bg-yellow-200 border-2 border-yellow-600 text-sm"><span class="term-hover" title="Шлюз API">API Gateway</span> / <span class="term-hover" title="Безпека транспортного рівня">TLS Termination</span> (<span class="term-hover" title="Взаємний TLS">mTLS</span>)</div>
+                        <span class="psp-arrow text-slate-500">↓</span>
+
+                        <div class="grid grid-cols-3 gap-4 w-full">
+                            <div class="flex flex-col items-center">
+                                <div class="psp-node bg-blue-200 border-2 border-blue-600 text-sm w-full">Сервіс Авторизації</div>
+                                <span class="psp-arrow text-blue-600">⇋</span>
+                                <div class="text-xs text-slate-600 font-medium"><span class="term-hover" title="Репліки для читання">Read Replicas Cache</span></div>
+                            </div>
+                            
+                            <div class="flex flex-col items-center">
+                                <div class="psp-node bg-green-200 border-2 border-green-600 text-sm w-full"><span class="term-hover" title="Сервіс Бухгалтерського Журналу">Ledger Service</span> (<span class="term-hover" title="Атомарність, Узгодженість, Ізоляція, Надійність">ACID</span>)</div>
+                                <span class="psp-arrow text-green-600">⇋</span>
+                                <div class="text-xs text-slate-600 font-medium">Високоточна Арифметика (<span class="term-hover" title="Десяткове число">Decimal</span>)</div>
+                            </div>
+
+                            <div class="flex flex-col items-center">
+                                <div class="psp-node bg-red-200 border-2 border-red-600 text-sm w-full">Crypto Service (<span class="term-hover" title="Федеральний Стандарт Обробки Інформації">FIPS</span>)</div>
+                                <span class="psp-arrow text-red-600">⇋</span>
+                                <div class="text-xs text-slate-600 font-medium"><span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span> / <span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> / <span class="term-hover" title="Система Управління Ключами">KMS</span></div>
+                            </div>
+                        </div>
+
+                        <span class="psp-arrow text-slate-500">⇅</span>
+                        <div class="psp-node bg-indigo-200 border-2 border-indigo-600 text-sm w-full md:w-1/2"><span class="term-hover" title="Брокер Повідомлень">Message Broker</span> (<span class="term-hover" title="Брокер повідомлень Kafka">Kafka</span>) - Асинхронна Комунікація</div>
+                        
+                    </div>
+                </div>
+                
+
+<p class="mt-4 text-sm text-slate-500">
+                    *Взаємодія між сервісами відбувається через <span class="term-hover" title="Взаємний TLS">mTLS</span> (<span class="term-hover" title="Взаємний TLS">Mutual TLS</span>) для внутрішньої безпеки. Сервіси бухгалтерської книги (<span class="term-hover" title="Бухгалтерський журнал">Ledger</span>) та Криптографії є критично ізольованими. Асинхронна комунікація через <span class="term-hover" title="Брокер Повідомлень">Message Broker</span> забезпечує стійкість системи до пікових навантажень.*
+                </p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 text-blue-700">Типовий Потік Платежу <span class="term-hover" title="Провайдер Платіжних Послуг">PSP</span></h3>
+                <p class="mb-4 text-slate-600">Схема ілюструє шлях транзакції (авторизації) від ініціатора (Клієнт/Термінал) до завершення. Усі комунікації між компонентами <span class="term-hover" title="Провайдер Платіжних Послуг">PSP</span> та зовнішніми мережами мають бути криптографічно захищені (<span class="term-hover" title="Безпека транспортного рівня">TLS 1.3</span>, <span class="term-hover" title="Стандарт обміну платіжними повідомленнями">ISO 8583</span>/<span class="term-hover" title="Формати фінансових повідомлень">20022</span>).</p>
+                
+                <div class="overflow-x-auto p-4">
+                    <div class="flex items-center space-x-2 md:space-x-4 min-w-max">
+                        <div class="psp-node bg-yellow-100 border-yellow-500">Клієнт/Термінал</div>
+                        <span class="psp-arrow text-red-500">👉</span>
+                        <div class="psp-node bg-blue-100 border-blue-500"><span class="term-hover" title="Провайдер Платіжних Послуг">PSP</span> (Платіжний Шлюз)</div>
+                        <span class="psp-arrow text-blue-500">👉</span>
+                        <div class="psp-node bg-green-100 border-green-500">Процесинг/Еквайр</div>
+                        <span class="psp-arrow text-green-500">👉</span>
+                        <div class="psp-node bg-indigo-100 border-indigo-500">Платіжна Мережа (<span class="term-hover" title="Глобальні карткові мережі">Visa</span>/<span class="term-hover" title="Глобальні карткові мережі">MC</span>)</div>
+                        <span class="psp-arrow text-indigo-500">👈/👉</span>
+                        <div class="psp-node bg-red-100 border-red-500">Банк-Емітент</div>
+                        <span class="psp-arrow text-red-500">👈</span>
+                        <div class="psp-node bg-blue-100 border-blue-500"><span class="term-hover" title="Провайдер Платіжних Послуг">PSP</span> (<span class="term-hover" title="Результат Авторизації">Auth Result</span>)</div>
+                        <span class="psp-arrow text-red-500">👈</span>
+                        <div class="psp-node bg-yellow-100 border-yellow-500">Клієнт</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Цільові Метрики <span class="term-hover" title="Транзакцій за секунду">TPS</span> та Надійності</h3>
+                <h4 class="text-xl font-semibold text-blue-700 mb-3">Вимоги до Надійності та Продуктивності:</h4>
+                <ul class="list-disc list-inside space-y-2 text-slate-600 ml-4">
+                    <li>Середній <span class="term-hover" title="Транзакцій за секунду">TPS</span>: 8,500 <span class="term-hover" title="Транзакцій за секунду">TPS</span>. Піковий <span class="term-hover" title="Транзакцій за секунду">TPS</span>: >20,000 <span class="term-hover" title="Транзакцій за секунду">TPS</span>.</li>
+                    <li>Латентність (<span class="term-hover" title="Шахрайство">Fraud</span>/<span class="term-hover" title="Ризик">Risk</span>): <150 мс. Прагнення до 10 мс для <span class="term-hover" title="Штучний Інтелект / Машинне Навчання">AI</span>/<span class="term-hover" title="Штучний Інтелект / Машинне Навчання">ML</span> моделей.</li>
+                    <li>Доступність (<span class="term-hover" title="Угода про рівень обслуговування">SLA</span>): 99.99% (<span class="term-hover" title="Чотири дев'ятки">Four Nines</span>), що вимагає конфігурації <span class="term-hover" title="Активно-Активний Кластер">Active-Active</span> кластера.</li>
+                </ul>
+            </div>
+        </section>
+
+        
+
+<section id="section-impl-crypto" class="content-section space-y-8" style="display: none;">
+            <h2 class="text-3xl font-bold text-slate-900 border-b pb-2">4. Реалізації: Стандарти Crypto <span class="term-hover" title="Інтерфейс прикладного програмування">API</span>, <span class="term-hover" title="Стандарти криптографії з відкритим ключем">PKCS</span> та Case Studies</h2>
+            <p class="text-lg text-slate-700">
+                Цей розділ розглядає, як розробляються криптографічні компоненти у відповідності до <span class="term-hover" title="Криптографічний API">Crypto API</span> та <span class="term-hover" title="Стандарти криптографії з відкритим ключем">PKCS</span>, а також деталізує практичні рішення лідерів ринку, що відповідають високим вимогам комплаєнсу.
+            </p>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4 text-blue-700">Вимоги Crypto <span class="term-hover" title="Інтерфейс прикладного програмування">API</span> та Стандартів <span class="term-hover" title="Стандарти криптографії з відкритим ключем">PKCS</span></h3>
+                <p class="mb-4 text-slate-600">Стандарти <span class="term-hover" title="Стандарти криптографії з відкритим ключем">PKCS</span> є основою для інтероперабельності криптографічних модулів. Особливо важливий <span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> (<span class="term-hover" title="Криптографічний токен">Cryptoki</span>) – <span class="term-hover" title="Інтерфейс прикладного програмування">API</span> для безпечної взаємодії з <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span> у фінансових системах.</p>
+                
+                
+
+<div class="flex flex-col items-center space-y-4 my-6">
+                    <div class="crypto-node bg-indigo-100 border-2 border-indigo-600 text-lg"><span class="term-hover" title="Стандарт Безпеки Даних Індустрії Платіжних Карт">PCI DSS</span> Compliance</div>
+                    <span class="crypto-arrow">↓ Вимагає</span>
+                    <div class="flex items-center">
+                        <div class="crypto-node bg-purple-100 border-2 border-purple-600 text-base"><span class="term-hover" title="Федеральний Стандарт Обробки Інформації">FIPS</span> 140-2/3 Certified Crypto Module</div>
+                        <span class="crypto-arrow">↔ Використовує</span>
+                        <div class="crypto-node bg-blue-100 border-2 border-blue-600 text-base"><span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> <span class="term-hover" title="Інтерфейс прикладного програмування">API</span></div>
+                    </div>
+                    <span class="crypto-arrow">↓ Для доступу до</span>
+                    <div class="crypto-node bg-red-100 border-2 border-red-600 text-lg"><span class="term-hover" title="Апаратний Модуль Безпеки">Hardware Security Module (HSM)</span></div>
+                    <span class="crypto-arrow">↑ Інтеграція через</span>
+                    <div class="crypto-node bg-green-100 border-2 border-green-600 text-base"><span class="term-hover" title="Криптографічний API Windows">Windows CryptoAPI</span> / <span class="term-hover" title="Криптографія Наступного Покоління">CNG</span></div>
+                </div>
+                
+
+<div class="border-b border-slate-200">
+                    <nav class="flex space-x-4" aria-label="Tabs">
+                        <button class="tab-btn active font-medium py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-blue-600" data-target="tab-pkcs11-det"><span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> (<span class="term-hover" title="Інтерфейс прикладного програмування">HSM API</span>)</button>
+                        <button class="tab-btn font-medium py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-blue-600" data-target="tab-crypto-api">CryptoAPI / <span class="term-hover" title="Криптографія Наступного Покоління">CNG</span></button>
+                    </nav>
+                </div>
+                
+                <div id="tab-pkcs11-det" class="tab-content active py-4">
+                    <h4 class="text-xl font-semibold text-blue-700 mb-3"><span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> (<span class="term-hover" title="Криптографічний токен">Cryptoki</span>) - Мандатний Інтерфейс до <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span></h4>
+                    <p class="text-slate-600"><span class="term-hover" title="Стандарт PKCS#11">PKCS#11</span> визначає стандартний <span class="term-hover" title="Інтерфейс прикладного програмування">API</span> для доступу до <span class="term-hover" title="Криптографічний токен">криптотокенів</span> та <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>. Це обов'язкова вимога для систем, що використовують <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>, оскільки гарантує, що:
+                        <ul class="list-disc list-inside text-sm mt-2 ml-4 space-y-1">
+                            <li>Ключі генеруються та використовуються всередині <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>.</li>
+                            <li>Ключі ніколи не покидають захищений модуль (<span class="term-hover" title="Ключі, які не можуть бути експортовані">non-exportable keys</span>).</li>
+                            <li>Підтримується інтероперабельність між різними виробниками <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>.</li>
+                        </ul>
+                    </p>
+                    <p class="text-sm text-slate-500 mt-3">Інші важливі стандарти: <span class="term-hover" title="Стандарт PKCS#1">PKCS#1</span> (<span class="term-hover" title="Алгоритм RSA">RSA</span>), <span class="term-hover" title="Стандарт PKCS#7">PKCS#7</span> (шифровані повідомлення), <span class="term-hover" title="Стандарт PKCS#8">PKCS#8</span>/<span class="term-hover" title="Стандарт PKCS#12">12</span> (формати обміну ключами).</p>
+                </div>
+
+                <div id="tab-crypto-api" class="tab-content py-4">
+                    <h4 class="text-xl font-semibold text-blue-700 mb-3"><span class="term-hover" title="Криптографічний API Windows">Microsoft CryptoAPI</span> та <span class="term-hover" title="Криптографія Наступного Покоління">CNG</span></h4>
+                    <p class="text-slate-600">Власні <span class="term-hover" title="Інтерфейс прикладного програмування">API</span> для криптографії у Windows. <span class="term-hover" title="Криптографія Наступного Покоління">CNG</span> (<span class="term-hover" title="Криптографія Наступного Покоління">Cryptography Next Generation</span>) надає інтегрований інтерфейс для шифрування, роботи з сертифікатами та вбудований <span class="term-hover" title="Криптографічно Стійкий Генератор Псевдовипадкових Чисел">CSPRNG</span> (<span class="term-hover" title="Вбудований CSPRNG Windows">CryptGenRandom</span>). Ці <span class="term-hover" title="Інтерфейс прикладного програмування">API</span> є основними для Windows-орієнтованих фінансових додатків.</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Зразки Існуючих Платіжних Інструментів (Case Studies)</h3>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="p-4 border rounded-lg bg-indigo-50 hover:shadow-lg transition flex flex-col items-center">
+                        <h4 class="text-lg font-extrabold text-slate-900 mb-3">STRIPE</h4>
+                        <h4 class="text-lg font-bold text-slate-800">Токенізація та <span class="term-hover" title="Рівень 1 Постачальника Послуг PCI">PCI Level 1</span></h4>
+                        <p class="text-sm text-slate-600 mt-1 text-center">Сертифікація <span class="term-hover" title="Рівень 1 Постачальника Послуг PCI">PCI Service Provider Level 1</span>. Використовує <span class="term-hover" title="Токенізація">токенізацію</span> (<span class="term-hover" title="Елементи Stripe">Stripe Elements</span>) для шифрування <span class="term-hover" title="Номер рахунку">PAN</span> на стороні браузера. Застосовує <span class="term-hover" title="Ієрархічне шифрування">ієрархічне шифрування</span> (<span class="term-hover" title="Ключ шифрування даних">DEK</span> шифрується <span class="term-hover" title="Ключ шифрування ключів">KEK</span>, <span class="term-hover" title="Ключ шифрування ключів">KEK</span> у <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>), що мінімізує зону дії <span class="term-hover" title="Стандарт Безпеки Даних Індустрії Платіжних Карт">PCI</span> для клієнтів.</p>
+                    </div>
+                    <div class="p-4 border rounded-lg bg-indigo-50 hover:shadow-lg transition flex flex-col items-center">
+                        <h4 class="text-lg font-extrabold text-slate-900 mb-3">SWEDBANK</h4>
+                        <h4 class="text-lg font-bold text-slate-800">Централізований <span class="term-hover" title="Централізована Система Управління Ключами">CKMS</span>/<span class="term-hover" title="Термінальна Система Управління Ключами">TKMS</span></h4>
+                        <p class="text-sm text-slate-600 mt-1 text-center">Використовує <span class="term-hover" title="Централізована Система Управління Ключами">централізований KMS</span>, що автоматизує <span class="term-hover" title="Життєвий цикл ключа">весь життєвий цикл ключа</span> (генерація в <span class="term-hover" title="Апаратний Модуль Безпеки">HSM</span>, ротація, розповсюдження) для відповідності вимогам <span class="term-hover" title="Стандарт Безпеки Даних Індустрії Платіжних Карт">PCI DSS</span> та <span class="term-hover" title="Вимоги до управління PIN-кодами">ISO 9564</span> (захист <span class="term-hover" title="Персональний Ідентифікаційний Номер">PIN</span>-кодів).</p>
+                    </div>
+                    <div class="p-4 border rounded-lg bg-indigo-50 hover:shadow-lg transition flex flex-col items-center">
+                        <h4 class="text-lg font-extrabold text-slate-900 mb-3">VERIFONE</h4>
+                        <h4 class="text-lg font-bold text-slate-800"><span class="term-hover" title="Наскрізне шифрування">P2PE</span> Рішення</h4>
+                        <p class="text-sm text-slate-600 mt-1 text-center">Виробник терміналів з провалідованим рішенням <span class="term-hover" title="Наскрізне шифрування">Point-to-Point Encryption (P2PE)</span>. Дані картки шифруються безпосередньо в захищеному модулі терміналу (<span class="term-hover" title="Стандарт безпеки платіжних додатків">PA-DSS</span>), що значно знижує <span class="term-hover" title="Область дії PCI">PCI-Scope</span> для кінцевих продавців.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-6 mt-12 bg-slate-800 text-slate-400">
+        <p>&copy; 2025. Аналітичний звіт. Створено як інтерактивний додаток.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const navigation = document.getElementById('navigation');
+            const sections = document.querySelectorAll('.content-section');
+            const navLinks = navigation.querySelectorAll('.nav-link');
+
+            // --- UI Handlers ---
+
+            function openModal() {
+                document.getElementById('geminiModal').classList.add('show');
+            }
+            window.openModal = openModal;
+
+            function closeModal() {
+                document.getElementById('geminiModal').classList.remove('show');
+            }
+            window.closeModal = closeModal;
+
+            // Navigation Logic
+            navigation.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('.nav-link');
+                if (!targetButton) return;
+
+                const targetId = targetButton.getAttribute('data-target');
+                
+                sections.forEach(section => {
+                    if (section.id === targetId) {
+                        section.style.display = 'block';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                });
+                targetButton.classList.add('active');
+            });
+
+            // Activate the first section and navigation link on load
+            navLinks[0].click();
+
+            const tabContainers = document.querySelectorAll('.bg-white');
+            tabContainers.forEach(container => {
+                const tabButtons = container.querySelectorAll('.tab-btn');
+                const tabContents = container.querySelectorAll('.tab-content');
+
+                if (tabButtons.length === 0) return;
+
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const targetId = button.getAttribute('data-target');
+
+                        tabButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+
+                        tabContents.forEach(content => {
+                            if (content.id === targetId) {
+                                content.classList.add('active');
+                            } else {
+                                content.classList.remove('active');
+                            }
+                        });
+                    });
+                });
+                if (tabButtons.length > 0) {
+                    tabButtons[0].click();
+                }
+            });
+
+            // --- Chart Logic: Точність vs. Продуктивність (Radar Chart) ---
+
+            const chartData = {
+                labels: ['Фінансова Точність', 'Продуктивність (Швидкість)', 'Крипто Безпека (FIPS)', 'Накладні Витрати (Overhead)'],
+                datasets: [
+                    {
+                        label: 'Decimal/BigDecimal (Рекомендовано)',
+                        data: [10, 3, 5, 8], 
+                        backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(59, 130, 246, 1)',
+                    },
+                    {
+                        label: 'FIPS Crypto Module (Мандат)',
+                        data: [5, 7, 10, 6], 
+                        backgroundColor: 'rgba(22, 163, 74, 0.4)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        pointBackgroundColor: 'rgba(22, 163, 74, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(22, 163, 74, 1)',
+                    },
+                    {
+                        label: 'Floating Point (Недопустимо)',
+                        data: [1, 10, 5, 2], 
+                        backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        pointBackgroundColor: 'rgba(239, 68, 68, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(239, 68, 68, 1)',
+                    }
+                ]
+            };
+
+            const ctx = document.getElementById('compChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        elements: {
+                            line: {
+                                borderWidth: 3
+                            }
+                        },
+                        scales: {
+                            r: {
+                                angleLines: {
+                                    display: true
+                                },
+                                suggestedMin: 0,
+                                suggestedMax: 10,
+                                pointLabels: {
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Компроміс: Точність, Безпека та Продуктивність (Шкала 1-10)'
+                            }
+                        }
+                    }
+                });
+            }           
+
+        });
+    </script>
+</body>
+</html>
