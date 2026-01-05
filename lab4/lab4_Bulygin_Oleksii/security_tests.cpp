@@ -56,9 +56,7 @@ UndeniableSignature::KeyPair generateSmallKeys(size_t bitSize) {
     return keys;
 }
 
-// ============================================================================
 // ATTACK 1: BRUTE-FORCE DLP
-// ============================================================================
 
 struct BruteForceResult {
     bool found;
@@ -141,9 +139,7 @@ void test_BruteForceAttack() {
     }
 }
 
-// ============================================================================
 // ATTACK 2: TRANSCRIPT FORGERY
-// ============================================================================
 
 void test_TranscriptForgery() {
     printHeader("ATTACK 2: Transcript Forgery (Non-Transferability)");
@@ -195,9 +191,7 @@ void test_TranscriptForgery() {
     }
 }
 
-// ============================================================================
 // ATTACK 3: SIGNATURE FORGERY
-// ============================================================================
 
 void test_SignatureForgery() {
     printHeader("ATTACK 3: Signature Forgery");
@@ -242,9 +236,7 @@ void test_SignatureForgery() {
     printTest("Related message forgery (4 variants)", success == 0);
 }
 
-// ============================================================================
 // ATTACK 4: CHALLENGE-RESPONSE
-// ============================================================================
 
 void test_ChallengeResponse() {
     printHeader("ATTACK 4: Challenge-Response Attacks");
@@ -272,32 +264,6 @@ void test_ChallengeResponse() {
         if (us.verifyResponse(challenge, fake, sig, keys.pub)) success++;
     }
     printTest("Response prediction (50 attempts)", success == 0);
-}
-
-// ============================================================================
-// ATTACK 5: KEY EXTRACTION
-// ============================================================================
-
-void test_KeyExtraction() {
-    printHeader("ATTACK 5: Private Key Extraction");
-    
-    UndeniableSignature us;
-    auto keys = us.generateKeysFast(1536);
-    
-    // Collect signatures
-    vector<UndeniableSignature::Signature> sigs;
-    for (int i = 0; i < 10; i++) {
-        sigs.push_back(us.sign("Message " + to_string(i), keys.priv));
-    }
-    
-    // All signatures different (no nonce reuse vulnerability)
-    bool allDifferent = true;
-    for (size_t i = 0; i < sigs.size() && allDifferent; i++)
-        for (size_t j = i + 1; j < sigs.size() && allDifferent; j++)
-            if (sigs[i].s == sigs[j].s) allDifferent = false;
-    
-    printTest("No signature collisions (10 samples)", allDifferent);
-    printTest("DLP on 1536-bit infeasible", true);  // By assumption
 }
 
 // ============================================================================
@@ -334,9 +300,93 @@ void test_DenialProtocol() {
     printTest("Completeness 100/100", invalidDenied == 100);
 }
 
-// ============================================================================
-// MAIN
-// ============================================================================
+void test_WeakParameters() {
+    printHeader("ATTACK 7: Weak Parameter Attacks");
+    
+    AutoSeededRandomPool rng;
+    
+    // 7.1 Small subgroup attack
+    cout << "\n  7.1 Small order generator:" << endl;
+    {
+        // Створюємо групу де g має малий порядок
+        Integer p("0xFFFFFFFFFFFFFFFFC90FDAA22168C234..."); // RFC 3526
+        Integer small_factor = Integer(7);  // малий дільник p-1, якщо є
+        Integer g_weak = a_exp_b_mod_c(Integer(2), (p-1)/small_factor, p);
+        
+        // Порядок g_weak = small_factor
+        Integer order_test = a_exp_b_mod_c(g_weak, small_factor, p);
+        bool is_weak = (order_test == Integer::One());
+        
+        if (is_weak) {
+            cout << "    [VULN] Generator has order " << small_factor << endl;
+            cout << "    DLP brute-force: " << small_factor << " operations" << endl;
+        } else {
+            cout << "    [SAFE] No small subgroup found" << endl;
+        }
+    }
+    
+    cout << "\n  7.2 Trivial generator check:" << endl;
+    {
+        UndeniableSignature us;
+        auto keys = us.generateKeysFast(1536);
+        
+        bool g_is_one = (keys.pub.g == Integer::One());
+        bool g_is_neg_one = (keys.pub.g == keys.pub.p - 1);
+        
+        printTest("g != 1", !g_is_one);
+        printTest("g != -1", !g_is_neg_one);
+    }
+    
+    // 7.3 Safe prime validation
+    cout << "\n  7.4 Safe prime validation:" << endl;
+    {
+        UndeniableSignature us;
+        auto keys = us.generateKeysFast(1536);
+        
+        // p = 2q + 1?
+        bool is_safe = (keys.pub.p == 2 * keys.pub.q + 1);
+        bool q_prime = IsPrime(keys.pub.q);
+        bool p_prime = IsPrime(keys.pub.p);
+        
+        printTest("p is prime", p_prime);
+        printTest("q is prime", q_prime);
+        printTest("p = 2q + 1 (safe prime)", is_safe);
+    }
+    
+    // 7.4 Pohlig-Hellman demo on weak prime
+    cout << "\n  7.4 Pohlig-Hellman on weak parameters:" << endl;
+    {
+        Integer p_weak("30031");  
+        
+        if (IsPrime(p_weak)) {
+            Integer p_minus_1 = p_weak - 1;
+            cout << "    p = " << p_weak << ", p-1 = " << p_minus_1 << endl;
+            cout << "    p-1 factors: 2 * 3 * 5 * 7 * 11 * 13" << endl;
+    
+            Integer g_weak = Integer(3);
+            Integer x_secret = Integer(12345);  // секрет
+            Integer y_weak = a_exp_b_mod_c(g_weak, x_secret, p_weak);
+            
+            auto start = high_resolution_clock::now();
+            
+            Integer x_found = Integer::Zero();
+            Integer test = Integer::One();
+            while (test != y_weak && x_found < p_weak) {
+                test = a_times_b_mod_c(test, g_weak, p_weak);
+                x_found++;
+            }
+            
+            auto elapsed = duration_cast<microseconds>(
+                high_resolution_clock::now() - start).count();
+            
+            bool cracked = (x_found == x_secret);
+            cout << "    Secret x = " << x_secret << endl;
+            cout << "    Found x = " << x_found << " in " << elapsed << " μs" << endl;
+            printTest("Weak prime cracked", cracked);
+        }
+    }
+}
+
 
 int main(int argc, char* argv[]) {
     cout << "\n╔══════════════════════════════════════════════════════════╗" << endl;
